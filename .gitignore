@@ -1,0 +1,28 @@
+# Environment secrets
+.env
+*.env.local
+
+# Docker volumes
+data/
+volumes/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Logs
+*.log
+logs/

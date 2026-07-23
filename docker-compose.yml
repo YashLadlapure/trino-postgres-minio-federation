@@ -1,0 +1,134 @@
+# =============================================================================
+# Trino Federated Query Demo
+# Stack: Trino + PostgreSQL + MinIO + Hive Metastore
+# =============================================================================
+
+version: "3.9"
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — relational source (structured app data)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: demo_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-demo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-demo}
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init/postgres:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-demo} -d ${POSTGRES_DB:-appdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lakehouse
+
+  # ---------------------------------------------------------------------------
+  # MinIO — S3-compatible object storage (lake layer)
+  # ---------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: demo_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lakehouse
+
+  # ---------------------------------------------------------------------------
+  # MinIO bucket initializer — creates the 'warehouse' bucket on startup
+  # ---------------------------------------------------------------------------
+  minio-init:
+    image: minio/mc:latest
+    container_name: demo_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
+        mc mb --ignore-existing local/warehouse;
+        echo 'Bucket warehouse created (or already exists)';
+      "
+    networks:
+      - lakehouse
+
+  # ---------------------------------------------------------------------------
+  # Hive Metastore — stores table schema/location metadata for the lake catalog
+  # ---------------------------------------------------------------------------
+  hive-metastore:
+    image: apache/hive:3.1.3
+    container_name: demo_hive_metastore
+    restart: unless-stopped
+    environment:
+      SERVICE_NAME: metastore
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      HIVE_METASTORE_WAREHOUSE_DIR: s3a://warehouse/
+    ports:
+      - "9083:9083"
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./conf/hive/hive-site.xml:/opt/hive/conf/hive-site.xml:ro
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo '' | nc -z localhost 9083"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+    networks:
+      - lakehouse
+
+  # ---------------------------------------------------------------------------
+  # Trino — federated query engine
+  # ---------------------------------------------------------------------------
+  trino:
+    image: trinodb/trino:435
+    container_name: demo_trino
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./trino/catalog:/etc/trino/catalog:ro
+      - ./trino/config:/etc/trino:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      hive-metastore:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+    networks:
+      - lakehouse
+
+volumes:
+  postgres_data:
+  minio_data:
+
+networks:
+  lakehouse:
+    driver: bridge
