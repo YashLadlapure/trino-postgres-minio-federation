@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
-<!--
-  Hive Metastore configuration
-  Configures S3A (MinIO) as the default filesystem for warehouse storage.
--->
+<!-- minio as the warehouse filesystem for hive metastore -->
 <configuration>
 
   <property>
@@ -26,7 +23,7 @@
     <value>minioadmin</value>
   </property>
 
-  <!-- Required for MinIO: path-style bucket addressing -->
+  <!-- path-style needed for minio — same as lake.properties -->
   <property>
     <name>fs.s3a.path.style.access</name>
     <value>true</value>
@@ -47,7 +44,7 @@
     <value>9083</value>
   </property>
 
-  <!-- Auto-create Derby metastore schema on first start -->
+  <!-- auto-create derby schema on first run; disable verification — local only -->
   <property>
     <name>datanucleus.schema.autoCreateAll</name>
     <value>true</value>
