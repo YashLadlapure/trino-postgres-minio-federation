@@ -1,9 +1,5 @@
--- =============================================================================
--- PostgreSQL Initialization Script
--- Auto-runs via /docker-entrypoint-initdb.d/ on first container start.
--- Creates and seeds the 'users' table.
--- Trino queries: postgres.public.users
--- =============================================================================
+-- runs on first postgres start via /docker-entrypoint-initdb.d/
+-- trino reads this as postgres.public.users
 
 \connect appdb;
 
