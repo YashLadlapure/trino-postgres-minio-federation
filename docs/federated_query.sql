@@ -1,20 +1,8 @@
--- =============================================================================
--- Federated Query: Trino joining PostgreSQL + MinIO in one SQL statement
---
--- postgres.public.users        → read from PostgreSQL via JDBC
--- lake.analytics.user_events   → read from MinIO Parquet files via Hive connector
---
--- Prerequisites:
---   1. All containers running:  docker compose up -d
---   2. Lake table created:      run docs/create_lake_table.sql
---
--- Run:
+-- joins postgres.public.users (JDBC) with lake.analytics.user_events (parquet/minio)
+-- run after create_lake_table.sql:
 --   docker exec -i demo_trino trino < docs/federated_query.sql
--- =============================================================================
 
--- ---------------------------------------------------------------------------
--- Query 1: Basic federated join
--- ---------------------------------------------------------------------------
+-- basic join across both sources
 SELECT
     u.user_id,
     u.username,
@@ -31,9 +19,7 @@ FROM
 ORDER BY
     e.event_timestamp;
 
--- ---------------------------------------------------------------------------
--- Query 2: Aggregated — events + avg session time per user and plan
--- ---------------------------------------------------------------------------
+-- per-user event count and avg session time
 SELECT
     u.username,
     u.full_name,
@@ -50,9 +36,7 @@ GROUP BY
 ORDER BY
     total_events DESC;
 
--- ---------------------------------------------------------------------------
--- Query 3: Active users with purchase events only (filter pushdown demo)
--- ---------------------------------------------------------------------------
+-- only active users who made a purchase (shows filter pushdown)
 SELECT
     u.username,
     u.plan,

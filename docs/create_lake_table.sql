@@ -1,19 +1,13 @@
--- =============================================================================
--- Lake Table Setup — run inside Trino CLI after `docker compose up -d`
---
--- Creates: lake.analytics schema and lake.analytics.user_events (Parquet/MinIO)
---
--- How to run:
+-- run inside trino CLI after containers are up
 --   docker exec -it demo_trino trino
---   (paste SQL below, or)
+--   paste below, or:
 --   docker exec -i demo_trino trino < docs/create_lake_table.sql
--- =============================================================================
 
--- Step 1: Create analytics schema (maps to s3a://warehouse/analytics/ in MinIO)
+-- schema maps to s3a://warehouse/analytics/ in minio
 CREATE SCHEMA IF NOT EXISTS lake.analytics
 WITH (location = 's3a://warehouse/analytics/');
 
--- Step 2: Create user_events table backed by Parquet files on MinIO
+-- parquet table backed by minio; location must match schema prefix
 CREATE TABLE IF NOT EXISTS lake.analytics.user_events (
     event_id        BIGINT,
     user_id         INTEGER,
@@ -28,7 +22,7 @@ WITH (
     location = 's3a://warehouse/analytics/user_events/'
 );
 
--- Step 3: Insert sample events (user_id 1-10 match postgres.public.users seed)
+-- user_id 1-10 match the seeded rows in postgres.public.users
 INSERT INTO lake.analytics.user_events VALUES
     (1001, 1,  'page_view', '/home',         'sess-aaa-001', 4200,  TIMESTAMP '2024-09-01 08:05:00'),
     (1002, 1,  'purchase',  '/checkout',     'sess-aaa-001', 12000, TIMESTAMP '2024-09-01 08:18:00'),

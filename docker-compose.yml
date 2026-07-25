@@ -1,15 +1,10 @@
-# =============================================================================
-# Trino Federated Query Demo
-# Stack: Trino + PostgreSQL + MinIO + Hive Metastore
-# =============================================================================
+# trino + postgres + minio + hive metastore — local demo only
 
 version: "3.9"
 
 services:
 
-  # ---------------------------------------------------------------------------
-  # PostgreSQL — relational source (structured app data)
-  # ---------------------------------------------------------------------------
+  # postgres: relational source, seeds on first start via init/postgres/
   postgres:
     image: postgres:15-alpine
     container_name: demo_postgres
@@ -31,9 +26,7 @@ services:
     networks:
       - lakehouse
 
-  # ---------------------------------------------------------------------------
-  # MinIO — S3-compatible object storage (lake layer)
-  # ---------------------------------------------------------------------------
+  # minio: S3-compatible storage, warehouse bucket used by hive + trino
   minio:
     image: minio/minio:latest
     container_name: demo_minio
@@ -55,9 +48,7 @@ services:
     networks:
       - lakehouse
 
-  # ---------------------------------------------------------------------------
-  # MinIO bucket initializer — creates the 'warehouse' bucket on startup
-  # ---------------------------------------------------------------------------
+  # one-shot container: creates the 'warehouse' bucket if it doesn't exist
   minio-init:
     image: minio/mc:latest
     container_name: demo_minio_init
@@ -73,9 +64,7 @@ services:
     networks:
       - lakehouse
 
-  # ---------------------------------------------------------------------------
-  # Hive Metastore — stores table schema/location metadata for the lake catalog
-  # ---------------------------------------------------------------------------
+  # hive metastore: stores table schema/location info for the lake catalog
   hive-metastore:
     image: apache/hive:3.1.3
     container_name: demo_hive_metastore
@@ -100,9 +89,7 @@ services:
     networks:
       - lakehouse
 
-  # ---------------------------------------------------------------------------
-  # Trino — federated query engine
-  # ---------------------------------------------------------------------------
+  # trino: query engine, talks to postgres via JDBC and to minio via hive connector
   trino:
     image: trinodb/trino:435
     container_name: demo_trino
